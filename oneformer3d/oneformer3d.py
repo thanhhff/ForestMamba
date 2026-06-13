@@ -2238,6 +2238,70 @@ class ForAINetV2OneFormer3D_XAwarequery(Base3DDetector):
 
         return loss_final
 
+    @staticmethod
+    def _nearest_voxel_idx(query_xyz, vox_xyz):
+        """Nearest-voxel index for each query (metadata for
+        ``predict_by_feat_test``; CHM queries are cylinder-pooled, so they have
+        no single owning voxel)."""
+        ei = cluster_knn(vox_xyz.float(), query_xyz.float(), 1)  # row=query col=vox
+        order = torch.argsort(ei[0])
+        return ei[1][order]
+
+    def _build_window_queries(self, x0, embed_logits, tree_indices,
+                              inverse_mapping2, pc3, mode):
+        """Build per-window instance queries for the sliding-window test path.
+
+        Returns ``(q_feats, q_xyz, src_xyz, query_idx)``.
+
+        * ``mode='fps'`` (default): pure FPS, ``q_xyz``/``src_xyz`` are ``None``
+          so the decoder is called exactly as before (no spatial coords) —
+          preserves the original behaviour bit-for-bit.
+        * ``mode='chm_fps'``: CHM/multi-stratum queries + FPS supplement, the
+          same ``_sample_queries`` used in training & validation, with 3-D
+          coords passed so the decoder's kNN aggregation matches training.
+        * ``mode='chm_plus_fps'``: a full FPS set PLUS CHM seeds (more queries);
+          keeps the entire FPS contribution and adds CHM on top.
+        """
+        device = x0.device
+        K = self.query_point_num
+
+        def pure_fps():
+            n = embed_logits[tree_indices].size(0)
+            ratio = min(K / n, torch.tensor([1.0]).to(device))
+            bt = torch.zeros(n, dtype=torch.long, device=device)
+            topk = fps(embed_logits[tree_indices], bt, ratio=ratio)
+            idx = tree_indices[topk]
+            return x0[idx], idx
+
+        if mode == 'fps':
+            feats, idx = pure_fps()
+            return feats, None, None, idx
+
+        # Per-voxel mean world XYZ, aligned with x0 rows (same as the val path).
+        vsp = torch.unique(inverse_mapping2, return_inverse=True)[1]
+        pts_w = pc3[:, :3].float().to(device)
+        vox_xyz = (scatter_add(pts_w, vsp, dim=0) /
+                   scatter_add(torch.ones_like(pts_w[:, :1]), vsp, dim=0).clamp(min=1))
+        src_xyz = vox_xyz[:, :3].float()
+
+        chm_feats, _ = self._sample_queries(
+            x0, embed_logits[tree_indices], vox_xyz, tree_indices, None, K)
+        chm_xyz = getattr(self, '_query_xyzs_cache', None)
+        if chm_xyz is None:
+            chm_xyz = vox_xyz[:chm_feats.shape[0]]
+        chm_xyz = chm_xyz[:, :3].float().to(device)
+        chm_idx = self._nearest_voxel_idx(chm_xyz, src_xyz)
+
+        if mode == 'chm_fps':
+            return chm_feats, chm_xyz, src_xyz, chm_idx
+
+        # mode == 'chm_plus_fps'
+        fps_feats, fps_idx = pure_fps()
+        q_feats = torch.cat([chm_feats, fps_feats], 0)
+        q_xyz   = torch.cat([chm_xyz, src_xyz[fps_idx]], 0)
+        q_idx   = torch.cat([chm_idx, fps_idx], 0)
+        return q_feats, q_xyz, src_xyz, q_idx
+
     #def predict(self, batch_inputs_dict, batch_data_samples, **kwargs):
     def predict_bm1orbm2(self, batch_inputs_dict, batch_data_samples, **kwargs):
         """Predict results from a batch of inputs and data samples with post-
@@ -2315,18 +2379,23 @@ class ForAINetV2OneFormer3D_XAwarequery(Base3DDetector):
                 tree_indices = torch.where(semantic_predictions_bi == wood_class)[0]  #all voxel
                     
                 if tree_indices.numel() > 0:
-                    
-                    # FPS from all tree points
-                    batch_tensor_4 = torch.zeros(embed_logits[tree_indices].size(0), dtype=torch.long).to(embed_logits.device)  # Ensure batch_tensor on same device
-                    topk_indices_4 = fps(embed_logits[tree_indices], batch_tensor_4, ratio=min(self.query_point_num / embed_logits[tree_indices].size(0), torch.tensor([1.0]).to(embed_logits.device)))
-                    selected_indices_case4 = tree_indices[topk_indices_4]
+                    # Query-initialisation mode (test_cfg.query_mode):
+                    #   'fps'          -> pure FPS (default; original behaviour)
+                    #   'chm_fps'      -> CHM/multi-stratum + FPS supplement,
+                    #                     matching the training & validation paths
+                    #   'chm_plus_fps' -> full FPS set PLUS CHM seeds (more queries)
+                    query_mode = self.test_cfg.get('query_mode', 'fps')
+                    q_feats, q_xyz, src_xyz, query_idx = self._build_window_queries(
+                        x[0], embed_logits, tree_indices,
+                        inverse_mapping2, pc3, query_mode)
 
-                    # add content queries
-                    queries = []
-                    queries.append(x[0][selected_indices_case4])
-                    
-                    x = self.decoder(x, queries)
-                    results_list = self.predict_by_feat_test(x, inverse_mapping2, pc3, selected_indices_case4)
+                    if q_xyz is None:
+                        x = self.decoder(x, [q_feats])
+                    else:
+                        x = self.decoder(x, [q_feats],
+                                         query_xyzs=[q_xyz], src_xyzs=[src_xyz])
+                    results_list = self.predict_by_feat_test(
+                        x, inverse_mapping2, pc3, query_idx)
                     
                     # Collect masks and their scores, process them immediately
                     masks = results_list[0].pts_instance_mask[0]
@@ -5950,3 +6019,4 @@ class InstanceOnlyOneFormer3D(Base3DDetector):
                 instance_labels=labels,
                 instance_scores=scores)
         ]
+

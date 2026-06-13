@@ -103,7 +103,15 @@ model = dict(
         stuff_cls=[0],
         thing_cls=[0],
         z_filter_margin=5.0,
-        merge_overlap_thr=0.3))
+        merge_overlap_thr=0.3,
+        # Sliding-window query init for the test/merge path. The original code
+        # used pure FPS at test, which (a) ignores the CHM seeds and (b)
+        # mismatches training (CHM+FPS). Options:
+        #   'fps'          pure FPS                 (original behaviour)
+        #   'chm_fps'      CHM + FPS supplement     (matches train & val)
+        #   'chm_plus_fps' full FPS set + CHM seeds (keeps all FPS, adds CHM)
+        query_mode='chm_fps',
+        ))
 
 # dataset settings
 dataset_type = 'ForAINetV2SegDataset_'
@@ -295,3 +303,4 @@ train_cfg = dict(
 val_cfg = dict(type='ValLoop')
 test_cfg = dict(type='TestLoop')
 find_unused_parameters = True
+sync_bn = 'torch'
