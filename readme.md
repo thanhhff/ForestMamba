@@ -15,14 +15,14 @@ Download the dataset and pre-trained checkpoint from Zenodo or Google Drive and 
 ```
 ForestMamba/
 ├── configs/ForAINetv2/
-│   └── forestmamba_chm_radius16_qp300_2many_v6_expand_1.py   ← inference config
+│   └── forestmamba_chm_radius16_qp300_2many_v6.py   ← inference config
 ├── data/
 │   └── ForAINetV2/
 │       ├── train_val_data/
 │       └── test_data/
 ├── work_dirs/
 │   └── forestmamba/
-│       └── epoch_3000_fix.pth                                 ← pre-trained checkpoint
+│       └── epoch_1500_fix.pth                                 ← pre-trained checkpoint
 ```
 
 ---
@@ -94,7 +94,7 @@ cp replace_mmdetection_files/distributed.py \
 > **Before running anything**, update `data_root_forainetv2` in the config to point to your data directory:
 >
 > ```python
-> # configs/ForAINetv2/forestmamba_chm_radius16_qp300_2many_v6_expand_1.py
+> # configs/ForAINetv2/forestmamba_chm_radius16_qp300_2many_v6.py
 > data_root_forainetv2 = '/your/path/to/ForAINetV2/'
 > ```
 
@@ -130,7 +130,7 @@ export NCCL_IB_DISABLE=1
 export NCCL_P2P_DISABLE=1
 
 CUDA_VISIBLE_DEVICES=0,1 PORT=29500 bash tools/dist_train.sh \
-  configs/ForAINetv2/forestmamba_chm_radius16_qp300_2many_v6_expand_1.py \
+  configs/ForAINetv2/forestmamba_chm_radius16_qp300_2many_v6.py \
   2 \
   --work-dir work_dirs/forestmamba
 ```
@@ -141,7 +141,7 @@ CUDA_VISIBLE_DEVICES=0,1 PORT=29500 bash tools/dist_train.sh \
 export PYTHONPATH=/workspace/ForestMamba
 
 CUDA_VISIBLE_DEVICES=0 python tools/train.py \
-  configs/ForAINetv2/forestmamba_chm_radius16_qp300_2many_v6_expand_1.py \
+  configs/ForAINetv2/forestmamba_chm_radius16_qp300_2many_v6.py \
   --work-dir work_dirs/forestmamba
 ```
 
@@ -149,7 +149,7 @@ CUDA_VISIBLE_DEVICES=0 python tools/train.py \
 
 ```bash
 CUDA_VISIBLE_DEVICES=0,1 PORT=29500 bash tools/dist_train.sh \
-  configs/ForAINetv2/forestmamba_chm_radius16_qp300_2many_v6_expand_1.py \
+  configs/ForAINetv2/forestmamba_chm_radius16_qp300_2many_v6.py \
   2 \
   --work-dir work_dirs/forestmamba \
   --resume work_dirs/forestmamba/epoch_1000.pth
@@ -182,7 +182,7 @@ export WANDB_MODE=disabled
 export PYTHONPATH=/workspace/ForestMamba
 
 CUDA_VISIBLE_DEVICES=0 python tools/test.py \
-  configs/ForAINetv2/forestmamba_chm_radius16_qp300_2many_v6_expand_1.py \
+  configs/ForAINetv2/forestmamba_chm_radius16_qp300_2many_v6.py \
   work_dirs/forestmamba/epoch_3000_fix.pth
 ```
 
@@ -195,7 +195,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun \
   --nproc_per_node=4 \
   --master_port=29500 \
   tools/test.py \
-  configs/ForAINetv2/forestmamba_chm_radius16_qp300_2many_v6_expand_1.py \
+  configs/ForAINetv2/forestmamba_chm_radius16_qp300_2many_v6.py \
   work_dirs/forestmamba/epoch_3000_fix.pth \
   --launcher pytorch
 ```
