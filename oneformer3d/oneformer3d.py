@@ -1371,7 +1371,7 @@ class ForAINetV2OneFormer3D(Base3DDetector):
         sp_masks = sp_masks > 0.5
 
         return sp_masks
-    
+
     @staticmethod
     def filter_stuff_masks(batch_data_samples_i, stuff_classes, ratio_inspoint):
         labels_3d = batch_data_samples_i.labels_3d
@@ -1892,6 +1892,16 @@ class ForAINetV2OneFormer3D_XAwarequery(Base3DDetector):
             .append(torch.nn.Linear(num_channels, 2))
             .append(torch.nn.LogSoftmax(dim=-1))
         )
+
+    
+    @staticmethod
+    def _cleanup_sliding_window_memory():
+        """Release per-window sparse coordinate caches before the next crop."""
+        if hasattr(ME, 'clear_global_coordinate_manager'):
+            ME.clear_global_coordinate_manager()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        gc.collect()
 
     def _sample_queries(self, backbone_feats, embed_feats_tree, xyz_voxels,
                         tree_indices, voxel_instance_labels, max_queries):
@@ -2754,6 +2764,25 @@ class ForAINetV2OneFormer3D_XAwarequery(Base3DDetector):
                 ids_np = pc1_indices.cpu().numpy()
                 sem_np = cyl_sem_pc1.cpu().numpy().astype(int)
                 np.add.at(votes_counter, (ids_np, sem_np), 1)
+
+            self._query_xyzs_cache = None
+            try:
+                del dx, dy, region_mask, pc1_indices, pc1
+                del pc2, pc2_indices, pc3, pc3_indices
+                del coordinates, features, inverse_mapping2, spatial_shape
+                del x, embed_logits, bi_semantic_logits, tree_indices
+                del _assign, nn_idx_pc1, sem_pred_pc3, cyl_sem_pc1
+            except NameError:
+                pass
+            try:
+                del voxel_counts_inf, voxel_xyz, query_feats, results_list
+                del masks_np, scores_np, masks_t, scores_t
+                del pc3_dist_sq, edge_pts, touches_edge, keep
+                del masks_kept, scores_kept, mk_bool, rows, cols
+                del score_per_hit, best_score, best_mid, improved
+            except NameError:
+                pass
+            self._cleanup_sliding_window_memory()
 
         # ----- Global post-processing -----
         # (A) Resolve per-point semantic label from accumulated votes.
