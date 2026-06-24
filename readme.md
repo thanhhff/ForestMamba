@@ -22,7 +22,7 @@ ForestMamba/
 │       └── test_data/
 ├── work_dirs/
 │   └── forestmamba/
-│       └── epoch_1500_fix.pth                                 ← pre-trained checkpoint
+│       └── v6_epoch_1500_fix.pth                                 ← pre-trained checkpoint
 ```
 
 ---
@@ -164,8 +164,8 @@ CUDA_VISIBLE_DEVICES=0,1 PORT=29500 bash tools/dist_train.sh \
 > If you trained your own model, fix the checkpoint first:
 > ```bash
 > python tools/fix_spconv_checkpoint.py \
->   --in-path  work_dirs/forestmamba/epoch_3000.pth \
->   --out-path work_dirs/forestmamba/epoch_3000_fix.pth
+>   --in-path  work_dirs/forestmamba/v6_epoch_1500.pth \
+>   --out-path work_dirs/forestmamba/v6_epoch_1500_fix.pth
 > ```
 
 ### Run inference
@@ -183,7 +183,7 @@ export PYTHONPATH=/workspace/ForestMamba
 
 CUDA_VISIBLE_DEVICES=0 python tools/test.py \
   configs/ForAINetv2/forestmamba_chm_radius16_qp300_2many_v6.py \
-  work_dirs/forestmamba/epoch_3000_fix.pth
+  work_dirs/forestmamba/v6_epoch_1500_fix.pth
 ```
 
 **Multi-GPU:**
@@ -196,7 +196,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun \
   --master_port=29500 \
   tools/test.py \
   configs/ForAINetv2/forestmamba_chm_radius16_qp300_2many_v6.py \
-  work_dirs/forestmamba/epoch_3000_fix.pth \
+  work_dirs/forestmamba/v6_epoch_1500_fix.pth \
   --launcher pytorch
 ```
 
