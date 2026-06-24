@@ -22,7 +22,7 @@ ForestMamba/
 │       └── test_data/
 ├── work_dirs/
 │   └── forestmamba/
-│       └── v6_epoch_1500_fix.pth                                 ← pre-trained checkpoint
+│       └── v6_epoch_1500_fix.pth                    ← pre-trained checkpoint
 ```
 
 ---
