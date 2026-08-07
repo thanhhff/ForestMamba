@@ -4,7 +4,7 @@ ForestMamba is a forest tree instance segmentation model built on a **sparse Mam
 
 - 🎉 **[2026-08]** ForestMamba has been accepted to the 37th British Machine Vision Conference **(BMVC 2026)**!
 - 📄 [Paper on arXiv](https://arxiv.org/abs/2606.01549)
-- 📦 [Dataset & pre-trained model on Zenodo](https://zenodo.org/records/16742708)
+- 📦 [Dataset on Zenodo](https://zenodo.org/records/16742708)
 - 🔗 [Pre-trained ForestMamba checkpoint (Google Drive)](https://drive.google.com/drive/folders/1wf_IcXNIZgxOg_Dkrt45ph2ssdBeWCHm?usp=sharing)
 
 ---
